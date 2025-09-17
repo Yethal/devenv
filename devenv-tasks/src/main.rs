@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 use devenv_tasks::{
-    signal_handler::SignalHandler, Config, RunMode, TaskConfig, TasksUi, VerbosityLevel,
+    signal_handler::SignalHandler, Config, RunMode, SudoContext, TaskConfig, TasksUi, VerbosityLevel,
 };
 use std::{env, fs, path::PathBuf};
 
@@ -37,6 +37,15 @@ enum Command {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
+
+    // Detect and handle sudo context FIRST, before any file operations
+    let sudo_context = SudoContext::detect();
+    if let Some(ref ctx) = sudo_context {
+        // Drop privileges immediately so all files are created with correct ownership
+        ctx.drop_privileges().map_err(|e| {
+            format!("Failed to drop privileges: {}", e)
+        })?;
+    }
 
     // Determine verbosity level from DEVENV_CMDLINE
     let mut verbosity = if let Ok(cmdline) = env::var("DEVENV_CMDLINE") {
@@ -91,6 +100,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 tasks,
                 roots,
                 run_mode: mode,
+                sudo_context: sudo_context.clone(),
             };
 
             // Create shared signal handler

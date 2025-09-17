@@ -128,7 +128,7 @@ in
               taskCmd = "${config.task.package}/bin/devenv-tasks run --task-file ${config.task.config} --mode all devenv:processes:${name}";
               command =
                 if value.process-compose.is_elevated or false
-                then taskCmd
+                then "DEVENV_DOTFILE=${config.env.DEVENV_DOTFILE} ${taskCmd}"
                 else "exec ${taskCmd}";
             in
             { inherit command; } // value.process-compose
